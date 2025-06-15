@@ -14,7 +14,18 @@ const Login = () => {
     setLoading(true);
 
     try {
-      // Verificar primeiro se o usuário existe na tabela 'usuarios'
+      // Primeiro tentar autenticar o usuário
+      const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) {
+        console.error('Erro de autenticação:', authError);
+        throw new Error('Credenciais inválidas');
+      }
+
+      // Se autenticado com sucesso, buscar dados adicionais do usuário
       const { data: usuarios, error: queryError } = await supabase
         .from('usuarios')
         .select('*')
@@ -22,7 +33,7 @@ const Login = () => {
       
       if (queryError) {
         console.error('Erro ao buscar usuário:', queryError);
-        throw new Error('Erro ao verificar usuário');
+        throw new Error('Erro ao buscar dados do usuário');
       }
       
       if (!usuarios || usuarios.length === 0) {
@@ -30,14 +41,6 @@ const Login = () => {
       }
 
       const usuario = usuarios[0];
-
-      // Tentar fazer login apenas se o usuário existir
-      const { data: { user }, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
 
       // Mostrar mensagem de boas-vindas
       toast.success(`Bem-vindo, ${usuario.nome} – ${usuario.igreja} – ${usuario.programa}`);
@@ -51,9 +54,11 @@ const Login = () => {
     } catch (error) {
       console.error('Erro completo:', error);
       toast.error(error.message || 'Erro ao fazer login');
-    } finally {
-      setLoading(false);
+      setLoading(false); // Garantir que o loading é desativado em caso de erro
+      return; // Encerrar a função em caso de erro
     }
+    
+    setLoading(false);
   };
 
   return (
