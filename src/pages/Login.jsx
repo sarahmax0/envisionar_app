@@ -12,53 +12,45 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+  
     try {
-      // Primeiro tentar autenticar o usuário
-      const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (authError) {
-        console.error('Erro de autenticação:', authError);
-        throw new Error('Credenciais inválidas');
-      }
-
-      // Se autenticado com sucesso, buscar dados adicionais do usuário
+      // Buscar dados do usuário
       const { data: usuarios, error: queryError } = await supabase
         .from('usuarios')
         .select('*')
         .eq('email', email);
-      
-      if (queryError) {
-        console.error('Erro ao buscar usuário:', queryError);
-        throw new Error('Erro ao buscar dados do usuário');
+  
+      if (queryError || !usuarios || usuarios.length !== 1) {
+        throw new Error('Usuário não encontrado ou duplicado');
       }
-      
-      if (!usuarios || usuarios.length === 0) {
-        throw new Error('Usuário não encontrado na base de dados');
-      }
-
+  
       const usuario = usuarios[0];
-
+  
+      // Tentar fazer login
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+  
+      if (authError) {
+        throw new Error('Senha incorreta');
+      }
+  
       // Mostrar mensagem de boas-vindas
       toast.success(`Bem-vindo, ${usuario.nome} – ${usuario.igreja} – ${usuario.programa}`);
-
+  
       // Redirecionar baseado no tipo de usuário
       if (usuario.tipo === 'pastor') {
         navigate('/dashboard-pastor');
       } else if (usuario.tipo === 'membro') {
         navigate('/dashboard-membro');
       }
+  
     } catch (error) {
-      console.error('Erro completo:', error);
-      toast.error(error.message || 'Erro ao fazer login');
-      setLoading(false); // Garantir que o loading é desativado em caso de erro
-      return; // Encerrar a função em caso de erro
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
